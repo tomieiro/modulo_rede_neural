@@ -98,7 +98,7 @@ class Rede:
 
     def error_back_propagation(self, y_esperado):
 
-        assert len(y_esperado) == len(self.camadas[i].neuronios),\
+        assert len(y_esperado) == len(self.camadas[-1].neuronios),\
             "Erro! O numero de rotulos passado nao eh o mesmo que o numero de saidas da rede!"
 
         for i in reversed(range(len(self.camadas))):
