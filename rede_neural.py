@@ -3,9 +3,11 @@ import numpy as np
 
 ############# CLASSE NEURONIO #############
 class Neuronio:
-    def __init__(self, index):
+    def __init__(self, index, momentum):
         self.index = index
         self.w = [] #Vetor de pesos para o neuronio
+        self.wp = [] #Vetor de pesos anteriores
+        self.momentum = momentum
         self.y = 0 #Valor de saida para o neuronio
         self.delta = 0 #Valor de delta para o neuronio
         self.erro = 0 # Valor de erro para o neuronio
@@ -21,8 +23,11 @@ class Neuronio:
     
     def atualiza_pesos(self, entrada, taxa_aprendizado):
         for i in range(len(entrada)):
-            self.w[i] -= taxa_aprendizado * (self.delta * entrada[i])
-        self.w[-1] -= taxa_aprendizado * self.delta
+            self.w[i] -= ((taxa_aprendizado * (self.delta * entrada[i])) - (self.momentum*(self.w[i] - self.wp[i])))
+        self.w[-1] -= (taxa_aprendizado * self.delta) - (self.momentum*(self.w[-1]-self.wp[-1]))
+
+        for i in range(len(self.w)):
+            self.wp[i] = self.w[i]
 
 ############## CLASSE CAMADA ##############
 class Camada:
@@ -37,12 +42,13 @@ class Camada:
 ############### CLASSE REDE ################
 class Rede:
 
-    def __init__(self, num_neuro_entrada, num_camadas_ocultas, num_neuro_camadas_ocultas, num_neuro_saida):
+    def __init__(self, num_neuro_entrada, num_camadas_ocultas, num_neuro_camadas_ocultas, num_neuro_saida, momentum):
         self.num_neuro_entrada = num_neuro_entrada
         self.num_camadas_ocultas = num_camadas_ocultas
         self.num_neuro_camadas_ocultas = num_neuro_camadas_ocultas
         self.num_neuro_saida = num_neuro_saida
         self.camadas = []
+        self.momento = momentum
         
         assert self.num_camadas_ocultas > 0,\
             "Verifique que deve existir pelo menos uma camada oculta!"
@@ -60,31 +66,34 @@ class Rede:
             layer = Camada()
             layer.index = i
             for j in range(num_neuro_camadas_ocultas[i]):
-                layer.neuronios.append(Neuronio(j))
+                layer.neuronios.append(Neuronio(j,momentum))
             self.camadas.append(layer)
 
         #Criando a camada de saida e seus neuronios
         layer = Camada()
         layer.index = num_camadas_ocultas
         for i in range(num_neuro_saida):
-            layer.neuronios.append(Neuronio(i))
+            layer.neuronios.append(Neuronio(i,momentum))
         self.camadas.append(layer)
 
         #Gerando pesos para cada neuronio da primeira camada oculta
         for i in range(num_neuro_camadas_ocultas[0]):
             for j in range(num_neuro_entrada+1):
                 self.camadas[0].neuronios[i].w.append(float(rd.randrange(-5,5)/10))
+                self.camadas[0].neuronios[i].wp.append(float(0))
 
         #Gerando pesos para cada neuronio das camadas ocultas restantes
         for i in range(1,num_camadas_ocultas):
             for j in range(num_neuro_camadas_ocultas[i]):
                 for k in range(num_neuro_camadas_ocultas[i-1]+1):
                     self.camadas[i].neuronios[j].w.append(float(rd.randrange(-5,5)/10))
+                    self.camadas[i].neuronios[j].wp.append(float(0))
         
         #Gerando pesos para cada neuronio da camada de saida
         for i in range(num_neuro_saida):
             for j in range(num_neuro_camadas_ocultas[-1]+1):
                 self.camadas[-1].neuronios[i].w.append(float(rd.randrange(-5,5)/10))
+                self.camadas[-1].neuronios[i].wp.append(float(0))
  
     def forward_propagation(self, linha_entrada):
         aux = linha_entrada
@@ -128,5 +137,3 @@ class Rede:
             for j in range(len(self.camadas[i-1].neuronios)):
                 nova_entrada.append(self.camadas[i-1].neuronios[j].y)
             self.camadas[i].atualiza_pesos(nova_entrada, taxa_aprendizado)
-
-
