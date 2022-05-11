@@ -1,5 +1,8 @@
+from math import pi
 import random as rd
+import sys
 import numpy as np
+#import pandas as pd
 
 ############# CLASSE NEURONIO #############
 class Neuronio:
@@ -42,13 +45,14 @@ class Camada:
 ############### CLASSE REDE ################
 class Rede:
 
-    def __init__(self, num_neuro_entrada, num_camadas_ocultas, num_neuro_camadas_ocultas, num_neuro_saida, momentum):
+    def __init__(self, num_neuro_entrada, num_neuro_saida, num_camadas_ocultas=2, num_neuro_camadas_ocultas=[100,100], momentum=pi/10, tx_aprendizado=0.5):
         self.num_neuro_entrada = num_neuro_entrada
         self.num_camadas_ocultas = num_camadas_ocultas
         self.num_neuro_camadas_ocultas = num_neuro_camadas_ocultas
         self.num_neuro_saida = num_neuro_saida
         self.camadas = []
         self.momento = momentum
+        self.tx_aprendizado = tx_aprendizado
         
         assert self.num_camadas_ocultas > 0,\
             "Verifique que deve existir pelo menos uma camada oculta!"
@@ -137,3 +141,82 @@ class Rede:
             for j in range(len(self.camadas[i-1].neuronios)):
                 nova_entrada.append(self.camadas[i-1].neuronios[j].y)
             self.camadas[i].atualiza_pesos(nova_entrada, taxa_aprendizado)
+
+    def treina(self, x_train, y_train, epocas=1000, print_error=False):
+
+        assert str(type(print_error)) == "<class 'bool'>",\
+             "Erro! O argumento print_error precisa ser booleano!"
+
+        for i in range(epocas):
+            sys.stdout.write('\r' + "[%-20s] %d%%" % ('|'*int(((i/epocas)*20)+1), int((i/epocas)*100)) + ' (Treinando ...) ')
+            sys.stdout.flush()
+            sum_error = 0
+            for j in range(len(x_train)):
+                aux = self.forward_propagation(x_train[j])
+                error = 0
+                for k in range(len(y_train[j])):
+                    error += (y_train[j][k] - aux[k])**2
+                sum_error += error
+                self.error_back_propagation(y_train[j])
+                self.atualiza_pesos(x_train[j], self.tx_aprendizado)
+            erro = sum_error / len(x_train)
+            if(print_error):
+                sys.stdout.write("  -> MSE (treino) : " + str(round(erro,6)))
+                sys.stdout.flush()
+        print("")
+        
+        return {"erro":erro}
+
+    def valida(self, x_test, y_test, print_error=False):
+        y = []
+        for i in range(len(x_test)):
+            sum_error = 0
+            aux = self.forward_propagation(x_test[i])
+            y.append(aux)
+            error = 0
+            for k in range(len(y_test[i])):
+                error += (y_test[i][k] - aux[k])**2
+            sum_error += error
+        erro = sum_error / len(x_test)
+        if(print_error):
+                print("MSE (test) : " + str(round(erro,6)))
+        return {"y":y,"erro":round(erro,6)}
+
+    def prediz(self, x):
+        return {"y":self.forward_propagation(x)}
+
+def usage():
+    print(\
+        """
+import rede_neural as rn
+
+x_treino = [[0,0],[0,1],[1,0],[1,1]]
+y_treino = [[0],[1],[1],[0]]
+x_teste = [[1,1],[0,1],[1,0]]
+y_teste = [[0],[1],[1]]
+
+net = rn.Rede(
+    num_neuro_entrada = 2,
+    num_camadas_ocultas = 2,
+    num_neuro_camadas_ocultas = [100,100],
+    num_neuro_saida = 1,
+    momentum = 0.3,
+    tx_aprendizado = 0.5
+)
+
+net.treina(
+    x_train = x_treino,
+    y_train = y_treino,
+    epocas = 1000,
+    print_error = True
+)
+
+aux = net.valida(
+    x_test = x_teste,
+    y_test = y_teste,
+    print_error = True
+)
+
+print(aux['y'],y_teste)
+        """\
+    )
